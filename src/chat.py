@@ -1,7 +1,14 @@
+from langchain.prompts import PromptTemplate
 from search import search_prompt
 
+
 def main():
-    chain = search_prompt()
+
+    template = PromptTemplate(
+        input_variables=["question"],
+        template="Olá, me faça uma pergunta"
+    )
+    chain = search_prompt(template)
 
     if not chain:
         print("Não foi possível iniciar o chat. Verifique os erros de inicialização.")
