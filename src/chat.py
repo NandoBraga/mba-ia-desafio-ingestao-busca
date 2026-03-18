@@ -1,20 +1,20 @@
-from langchain.prompts import PromptTemplate
 from search import search_prompt
 
 
 def main():
 
-    template = PromptTemplate(
-        input_variables=["question"],
-        template="Olá, me faça uma pergunta"
-    )
-    chain = search_prompt(template)
+    print("Olá! Bem-vindo ao assistente de perguntas do Faturamento. Por favor, faça sua pergunta ou digite sair para encerrar a conversa.")
 
-    if not chain:
-        print("Não foi possível iniciar o chat. Verifique os erros de inicialização.")
-        return
-    
-    pass
+    while True:
+        user_input = input("Você: ")
+
+        if user_input.lower() == "sair":
+            print("Assistente: Até logo! Se precisar de mais ajuda, estarei aqui.")
+            break
+
+        resposta = search_prompt(user_input)
+
+        print(f"Assistente: {resposta}")
 
 if __name__ == "__main__":
     main()
