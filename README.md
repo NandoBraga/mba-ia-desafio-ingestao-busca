@@ -1,7 +1,5 @@
 # Desafio MBA Engenharia de Software com IA - Full Cycle
 
-Descreva abaixo como executar a sua solução.
-
 ## Configuração do Ambiente
 
 Para configurar o ambiente e instalar as dependências do projeto, siga os passos abaixo:
