@@ -10,16 +10,25 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PDF_PATH = os.getenv("PDF_PATH")
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL")
+PG_VECTOR_COLLECTION_NAME = os.getenv("PG_VECTOR_COLLECTION_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not all([PDF_PATH, OPENAI_EMBEDDING_MODEL, PG_VECTOR_COLLECTION_NAME, DATABASE_URL]):
+    raise ValueError("Certifique-se de que todas as variáveis de ambiente necessárias estão definidas: PDF_PATH, OPENAI_EMBEDDING_MODEL, PG_VECTOR_COLLECTION_NAME, DATABASE_URL")
+
 
 def ingest_pdf():
     loader = PyPDFLoader(PDF_PATH)
     docs = loader.load()
     
-    splitter = RecursiveCharacterTextSplitter(
+    splits = RecursiveCharacterTextSplitter(
         chunk_size=1000, 
-        chunk_overlap=150)
-    
-    splits = splitter.split_documents(docs)
+        chunk_overlap=150,
+        add_start_index=False).split_documents(docs) 
+
+    if not splits:
+        raise SystemExit("Processo de ingestão interrompido devido à ausência de documentos.")
 
     enriched = [
         Document(
@@ -32,16 +41,17 @@ def ingest_pdf():
     ids = [f"doc-{i}" for i in range(len(enriched))]
 
     embeddings = OpenAIEmbeddings(
-        model=os.getenv("OPENAI_MODEL","text-embedding-3-small"))
+        model=OPENAI_EMBEDDING_MODEL)
 
     store = PGVector(
         embeddings=embeddings,
-        collection_name=os.getenv("PG_VECTOR_COLLECTION_NAME"),
-        connection=os.getenv("DATABASE_URL"),
+        collection_name=PG_VECTOR_COLLECTION_NAME,
+        connection=DATABASE_URL,
         use_jsonb=True,
     )
 
     store.add_documents(documents=enriched, ids=ids)
+    print(f"Ingestão concluída. {len(enriched)} documentos foram processados e armazenados.")
 
 
 if __name__ == "__main__":

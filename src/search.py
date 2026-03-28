@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_core.runnables import chain
 from langchain_openai import OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from langchain_postgres import PGVector
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import chain
@@ -34,42 +35,66 @@ PERGUNTA DO USUÁRIO:
 RESPONDA A "PERGUNTA DO USUÁRIO"
 """
 
-load_dotenv() 
+load_dotenv()
 
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-DATABASE_URL = os.getenv("DATABASE_URL")
 PG_VECTOR_COLLECTION_NAME = os.getenv("PG_VECTOR_COLLECTION_NAME")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not all([OPENAI_EMBEDDING_MODEL, PG_VECTOR_COLLECTION_NAME, DATABASE_URL]):
+    raise ValueError("Certifique-se de que todas as variáveis de ambiente necessárias estão definidas: OPENAI_EMBEDDING_MODEL, PG_VECTOR_COLLECTION_NAME, DATABASE_URL")
 
-@chain
-def search_prompt(question:None):
-    
+def search_prompt(question:None, k:int=10):
+
     if question is None:
         return
 
-    question_template = PromptTemplate(
-        input_variables=["contexto", "pergunta"],
-        template=PROMPT_TEMPLATE
+    embeddings = OpenAIEmbeddings(
+        model=OPENAI_EMBEDDING_MODEL
     )
 
-    model = initialize_chat_model(model="gemini-2.5-flash-lite", temperature=0.5)
+    if not embeddings:
+        print("Falha ao criar embeddings. Verifique as configurações do OpenAI.")
+        raise SystemExit(0)
 
-    embeddings = OpenAIEmbeddings(model=OPENAI_EMBEDDING_MODEL)
-
-    vector_store = PGVector(
+    store = PGVector(
         embeddings=embeddings,
         collection_name=PG_VECTOR_COLLECTION_NAME,
-        connection_string=DATABASE_URL,
+        connection=DATABASE_URL,
         use_jsonb=True
     )
 
-    results = vector_store.similarity_search(question, k=10)
+    if not store:
+        print("Falha ao conectar ao PGVector. Verifique as configurações do banco de dados.")
+        raise SystemExit(0)
 
-    contexto = "\n\n".join([result.page_content for result in results])
+    results = store.similarity_search_with_score(question, k=k)
 
-    chain = contexto | question_template | model
+    if not results:
+        return "Não tenho informações necessárias para responder sua pergunta."
 
-    resposta = chain.invoke({"pergunta": question})
+    output = []
+    
+    for i, (doc, score) in enumerate(results, start=1):
+        output.append("="*50)
+        output.append(f"Resultado {i} (score: {score:.2f}):")
+        output.append("="*50)
 
-    return resposta.content
+        output.append("\nTexto:\n")
+        output.append(doc.page_content.strip())
+
+    prompt = PromptTemplate(
+        template=PROMPT_TEMPLATE,
+        input_variables=["contexto", "pergunta"]
+    ).format(contexto="\n\n".join(output), pergunta=question)
+    
+    llm = ChatOpenAI(
+        model="gpt-5-nano", 
+        openai_api_key=OPENAI_API_KEY,
+        temperature=0)
+    
+    return llm.invoke(prompt)
+
+if __name__ == "__main__":
+    search_prompt()
