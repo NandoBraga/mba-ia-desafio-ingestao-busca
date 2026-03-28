@@ -22,7 +22,7 @@ Para configurar o ambiente e instalar as dependências do projeto, siga os passo
 3. **Configurar as variáveis de ambiente:**
 
    - Duplique o arquivo `.env.example` e renomeie para `.env`
-   - Preencher variáveis GOOGLE_API_KEY e OPENAI_API_KEY
+   - Preencher variável OPENAI_API_KEY com sua respectiva chave
 
 4. **Iniciando Docker
    ```bash
